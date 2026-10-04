@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0d">
+<meta name="description" content="Trova concerti ed eventi musicali in base alla tua libreria TIDAL.">
+<link rel="manifest" href="manifest.webmanifest">
+<title>TIDAL Event Finder</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b0b0d;color:#f5f5f5;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:22px 18px 12px;position:sticky;top:0;background:#0b0b0df2;backdrop-filter:blur(12px);z-index:5}
+h1{margin:0 0 4px;font-size:25px}.sub{color:#999;font-size:13px}
+main{max-width:900px;margin:auto;padding:14px 16px 100px}
+.card{background:#151518;border:1px solid #29292e;border-radius:15px;padding:14px;margin:10px 0}
+label{display:block;color:#aaa;font-size:12px;font-weight:700;margin:0 0 6px}
+input,button{font:inherit}
+input[type=text],input[type=password],input[type=number]{width:100%;padding:13px;border-radius:12px;border:1px solid #333;background:#111114;color:#fff;font-size:15px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+button{border:0;border-radius:12px;padding:12px 14px;font-weight:800;cursor:pointer}
+.primary{background:#fff;color:#111;width:100%;margin-top:10px}
+.secondary{background:#222227;color:#eee}
+.import{display:block;background:#fff;color:#111;text-align:center;border-radius:13px;padding:14px;margin:8px 0;font-weight:800;cursor:pointer}
+input[type=file]{display:none}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:#151518;border:1px solid #26262a;border-radius:12px;padding:12px}
+.num{font-size:20px;font-weight:800}.lab{font-size:11px;color:#999}
+.small{color:#888;font-size:12px;line-height:1.45}
+.artist-list{display:flex;flex-wrap:wrap;gap:7px}
+.pill{display:inline-block;background:#222227;border-radius:20px;padding:6px 9px;font-size:12px;color:#ddd}
+.event{overflow:hidden}
+.event-top{display:flex;gap:12px}
+.event img{width:82px;height:82px;object-fit:cover;border-radius:10px;background:#222}
+.event h3{font-size:16px;margin:0 0 4px}
+.meta{color:#aaa;font-size:13px;line-height:1.45}
+.match{font-size:11px;color:#bbb;margin-top:7px}
+a.cta{display:block;text-align:center;text-decoration:none;background:#fff;color:#111;padding:11px;border-radius:11px;font-weight:800;margin-top:11px}
+.empty{text-align:center;color:#888;padding:35px 15px}
+.status{margin-top:10px;color:#bbb;font-size:13px}
+details summary{cursor:pointer;font-weight:800}
+footer{position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #222;padding:8px;text-align:center;color:#777;font-size:10px}
+@media(max-width:560px){.row{grid-template-columns:1fr}.event-top{align-items:flex-start}}
+</style>
+</head>
+<body>
+<header><h1>🎵 TIDAL Event Finder</h1><div class="sub">Trova concerti in base alla tua musica</div></header>
+<main>
+
+<div class="card">
+  <label>1. IMPORTA LA TUA LIBRERIA TIDAL</label>
+  <label class="import">＋ IMPORTA CSV TIDAL
+    <input id="file" type="file" accept=".csv,.txt,text/csv,text/plain">
+  </label>
+  <div class="small">Il CSV resta nel browser del tuo telefono. Non viene caricato su un mio server.</div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="num" id="tracks">0</div><div class="lab">BRANI</div></div>
+  <div class="stat"><div class="num" id="artists">0</div><div class="lab">ARTISTI</div></div>
+  <div class="stat"><div class="num" id="albums">0</div><div class="lab">ALBUM</div></div>
+</div>
+
+<div class="card">
+  <details open>
+    <summary>2. Impostazioni ricerca</summary>
+    <div style="height:12px"></div>
+    <label>API key Ticketmaster</label>
+    <input id="apiKey" type="password" placeholder="Incolla qui la tua API key">
+    <div class="small" style="margin-top:6px">La chiave viene salvata solo localmente sul dispositivo. Serve per interrogare la Discovery API di Ticketmaster.</div>
+    <div style="height:12px"></div>
+    <div class="row">
+      <div><label>Città / località</label><input id="city" type="text" placeholder="es. Venezia, Padova"></div>
+      <div><label>Raggio km</label><input id="radius" type="number" min="1" max="500" value="100"></div>
+    </div>
+    <button id="geo" class="secondary" style="width:100%;margin-top:9px">📍 Usa la mia posizione</button>
+    <button id="searchBtn" class="primary">🔎 TROVA EVENTI PER I MIEI GUSTI</button>
+    <div id="status" class="status"></div>
+  </details>
+</div>
+
+<div class="card">
+  <label>I TUOI ARTISTI PIÙ RAPPRESENTATI</label>
+  <div id="taste" class="artist-list"><span class="small">Importa il CSV per calcolare il tuo profilo musicale.</span></div>
+</div>
+
+<section id="events"><div class="empty">Importa la libreria e avvia la ricerca.</div></section>
+
+<div class="card">
+  <details>
+    <summary>Privacy e dati</summary>
+    <p class="small">La libreria musicale viene memorizzata nel localStorage del browser. Le richieste degli eventi vengono inviate direttamente dalla pagina alla fonte eventi configurata. Non è presente un database personale in questa versione.</p>
+  </details>
+</div>
+</main>
+<footer>TIDAL Event Finder · web app personale</footer>
+
+<script>
+const KEY="tidalEventFinderV1";
+let data=JSON.parse(localStorage.getItem(KEY)||'{"rows":[]}');
+
+const $=s=>document.querySelector(s);
+const clean=s=>String(s??"").trim();
+const unique=a=>[...new Set(a.filter(Boolean))];
+
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function csv(text){
+  text=text.replace(/^\\uFEFF/,"");let rows=[],row=[],cell="",q=false;
+  for(let i=0;i<text.length;i++){
+    let c=text[i],n=text[i+1];
+    if(c=='"'&&q&&n=='"'){cell+='"';i++;continue}
+    if(c=='"'){q=!q;continue}
+    if(c==","&&!q){row.push(cell);cell="";continue}
+    if((c=="\\n"||c=="\\r")&&!q){
+      if(c=="\\r"&&n=="\\n")i++;
+      row.push(cell);cell="";
+      if(row.some(x=>x.trim()))rows.push(row);
+      row=[];continue
+    }
+    cell+=c;
+  }
+  if(cell.length||row.length){row.push(cell);rows.push(row)}
+  return rows;
+}
+function parse(text){
+  let r=csv(text);if(!r.length)return[];
+  let h=r[0].map(x=>clean(x).toLowerCase());
+  const find=(...a)=>h.findIndex(x=>a.includes(x));
+  let ix={
+    track:find("track","track title","title","song","brano","name"),
+    artist:find("artist","artist name","artista"),
+    album:find("album","album title"),
+    playlist:find("playlist","collection","list","playlist name"),
+    type:find("type","tipo"),isrc:find("isrc"),id:find("tidal id","id")
+  };
+  let looksHeader=Object.values(ix).some(x=>x>=0), start=looksHeader?1:0;
+  return r.slice(start).map(x=>({
+    track:clean(x[ix.track>=0?ix.track:0]),
+    artist:clean(x[ix.artist>=0?ix.artist:1]),
+    album:clean(x[ix.album>=0?ix.album:2]),
+    playlist:clean(x[ix.playlist>=0?ix.playlist:3]),
+    type:clean(x[ix.type]),isrc:clean(x[ix.isrc]),id:clean(x[ix.id])
+  })).filter(x=>x.track||x.artist||x.album);
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function artistRanking(){
+  const c=new Map();
+  for(const r of data.rows){if(r.artist)c.set(r.artist,(c.get(r.artist)||0)+1)}
+  return [...c.entries()].sort((a,b)=>b[1]-a[1]).slice(0,20);
+}
+function render(){
+  $("#tracks").textContent=unique(data.rows.map(x=>x.track)).length;
+  $("#artists").textContent=unique(data.rows.map(x=>x.artist)).length;
+  $("#albums").textContent=unique(data.rows.map(x=>x.album)).length;
+  const top=artistRanking();
+  $("#taste").innerHTML=top.length?top.map(([a,n])=>`<span class="pill">${esc(a)} · ${n}</span>`).join(""):'<span class="small">Importa il CSV per calcolare il tuo profilo musicale.</span>';
+}
+$("#apiKey").value=localStorage.getItem("tmApiKey")||"";
+$("#city").value=localStorage.getItem("tmCity")||"";
+$("#radius").value=localStorage.getItem("tmRadius")||"100";
+
+$("#apiKey").onchange=()=>localStorage.setItem("tmApiKey",$("#apiKey").value.trim());
+$("#city").onchange=()=>localStorage.setItem("tmCity",$("#city").value.trim());
+$("#radius").onchange=()=>localStorage.setItem("tmRadius",$("#radius").value);
+
+$("#file").onchange=e=>{
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const incoming=parse(reader.result);
+      const key=x=>(x.id||x.isrc||[x.track,x.artist,x.album,x.playlist].join("|")).toLowerCase();
+      const m=new Map(data.rows.map(x=>[key(x),x]));
+      incoming.forEach(x=>m.set(key(x),x));
+      data.rows=[...m.values()];save();render();
+      $("#status").textContent=`Importate ${incoming.length} righe. Archivio: ${data.rows.length}.`;
+    }catch(err){$("#status").textContent="Errore CSV: "+err.message}
+  };
+  reader.readAsText(file,"UTF-8");e.target.value="";
+};
+
+let coords=null;
+$("#geo").onclick=()=>{
+  if(!navigator.geolocation){$("#status").textContent="Geolocalizzazione non disponibile.";return}
+  $("#status").textContent="Richiesta della posizione…";
+  navigator.geolocation.getCurrentPosition(
+    p=>{coords={lat:p.coords.latitude,lon:p.coords.longitude};$("#city").value="Posizione attuale";$("#status").textContent="Posizione acquisita. Premi la ricerca.";},
+    ()=>$("#status").textContent="Non riesco a ottenere la posizione. Inserisci una città manualmente.",
+    {enableHighAccuracy:false,timeout:10000}
+  );
+};
+
+async function searchEvents(){
+  const api=$("#apiKey").value.trim();
+  if(!api){$("#status").textContent="Manca la API key Ticketmaster.";return}
+  const artists=artistRanking().slice(0,8);
+  if(!artists.length){$("#status").textContent="Prima importa la libreria TIDAL.";return}
+  const radius=Math.max(1,Math.min(500,Number($("#radius").value)||100));
+  localStorage.setItem("tmApiKey",api);localStorage.setItem("tmCity",$("#city").value.trim());localStorage.setItem("tmRadius",radius);
+  $("#status").textContent=`Cerco eventi per ${artists.length} artisti…`;
+  $("#events").innerHTML='<div class="empty">Sto cercando i tuoi eventi…</div>';
+
+  let all=[];
+  for(const [artist,count] of artists){
+    const params=new URLSearchParams({apikey:api,keyword:artist,classificationName:"music",size:"20",sort:"date,asc",radius:String(radius)});
+    if(coords){params.set("latlong",coords.lat+","+coords.lon)}
+    else if($("#city").value.trim() && $("#city").value.trim()!=="Posizione attuale"){params.set("city",$("#city").value.trim())}
+    try{
+      const r=await fetch("https://app.ticketmaster.com/discovery/v2/events.json?"+params.toString());
+      if(!r.ok)continue;
+      const j=await r.json();
+      for(const ev of (j._embedded?.events||[])){
+        const name=(ev._embedded?.attractions||[]).map(a=>a.name).join(", ");
+        all.push({ev,artist,count,name});
+      }
+    }catch(e){}
+  }
+  const seen=new Set();
+  all=all.filter(x=>{if(seen.has(x.ev.id))return false;seen.add(x.ev.id);return true});
+  all.sort((a,b)=>a.ev.dates?.start?.localDate?.localeCompare(b.ev.dates?.start?.localDate||"")||b.count-a.count);
+  renderEvents(all.slice(0,60));
+}
+function renderEvents(list){
+  if(!list.length){$("#events").innerHTML='<div class="empty">Nessun evento trovato. Prova ad aumentare il raggio o cambiare località.</div>';$("#status").textContent="Ricerca completata: 0 eventi.";return}
+  $("#status").textContent=`Trovati ${list.length} eventi compatibili.`;
+  $("#events").innerHTML=list.map(x=>{
+    const e=x.ev,d=e.dates?.start||{},v=e._embedded?.venues?.[0]||{};
+    const img=(e.images||[]).sort((a,b)=>(b.width||0)-(a.width||0))[0]?.url||"";
+    const date=d.localDate?new Date((d.localDate+"T"+(d.localTime||"12:00"))).toLocaleString("it-IT",{dateStyle:"medium",timeStyle:"short"}):"Data da definire";
+    const place=[v.name,v.city?.name,v.country?.name].filter(Boolean).join(" · ");
+    return `<div class="card event"><div class="event-top">${img?`<img src="${esc(img)}" alt="">`:""}<div><h3>${esc(e.name||x.name)}</h3><div class="meta">📅 ${esc(date)}</div><div class="meta">📍 ${esc(place||"Luogo da definire")}</div><div class="match">🎧 Compatibile con il tuo gusto: <b>${esc(x.artist)}</b> · ${x.count} brani nella libreria</div></div></div>${e.url?`<a class="cta" href="${esc(e.url)}" target="_blank" rel="noopener">🎟️ Vedi evento / biglietti</a>`:""}</div>`;
+  }).join("");
+}
+$("#searchBtn").onclick=searchEvents;
+render();
+</script>
+</body>
+</html>
